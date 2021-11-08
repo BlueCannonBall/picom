@@ -711,6 +711,7 @@ static struct managed_win *paint_preprocess(session_t *ps, bool *fade_running) {
 	rc_region_t *last_reg_ignore = rc_region_new();
 
 	bool unredir_possible = false;
+	bool transparency = false;
 	// Track whether it's the highest window to paint
 	bool is_highest = true;
 	bool reg_ignore_valid = true;
@@ -816,6 +817,10 @@ static struct managed_win *paint_preprocess(session_t *ps, bool *fade_running) {
 			last_reg_ignore = tmp;
 		}
 
+		if (ps->o.unredir_if_possible && w->mode == WMODE_TRANS) {
+			transparency = true;
+		}
+
 		// (Un)redirect screen
 		// We could definitely unredirect the screen when there's no window to
 		// paint, but this is typically unnecessary, may cause flickering when
@@ -873,7 +878,7 @@ static struct managed_win *paint_preprocess(session_t *ps, bool *fade_running) {
 		// don't redirect it.
 		unredir_possible = true;
 	}
-	if (unredir_possible) {
+	if (unredir_possible && !transparency) {
 		if (ps->redirected) {
 			if (!ps->o.unredir_if_possible_delay || ps->tmout_unredir_hit) {
 				unredirect(ps);
@@ -2506,10 +2511,9 @@ int main(int argc, char **argv) {
 				// Failed to read, the child has most likely died
 				// We can probably waitpid() here.
 				return 1;
-			} else {
-				// We are done
-				return 0;
 			}
+			// We are done
+			return 0;
 		}
 		// We are the child
 		close(pfds[0]);
